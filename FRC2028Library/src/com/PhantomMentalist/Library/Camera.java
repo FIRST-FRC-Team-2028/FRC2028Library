@@ -1,10 +1,12 @@
 package com.PhantomMentalist.Library;
 
 
+import java.awt.Dimension;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.security.Policy.Parameters;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Vector;
@@ -34,6 +36,8 @@ public class Camera {
 	Image frame;
 	Image binaryFrame;
 	int imaqError;
+	double cameraXPixToAngleRatio;
+	double cameraYPixToAngleRatio;
 	
 	double angle = 0;
 
@@ -54,8 +58,8 @@ public class Camera {
 								// 1.4
 	// double RATIO_DEAD = 0.1;
 	double SCORE_MIN = 75.0; // Minimum score to be considered a tote
-	double VIEW_ANGLE = 64; // View angle for camera, set to Axis m1011 by
-							// default, 64 for m1013, 51.7 for 206, 52 for
+	double viewAngleX = 67; // View angle for camera, set to Axis m1011 by
+	double viewAngleY = 51;						// default, 64 for m1013, 51.7 for 206, 52 for
 							// HD3000 square, 60 for HD3000 640x480
 	NIVision.ParticleFilterCriteria2 criteria[] = new NIVision.ParticleFilterCriteria2[1];
 	NIVision.ParticleFilterOptions2 filterOptions = new NIVision.ParticleFilterOptions2(
@@ -138,6 +142,8 @@ public class Camera {
 		cam.writeResolution(res);
 		cam.writeExposurePriority(exposure);
 		cam.writeWhiteBalance(wb);
+		cameraXPixToAngleRatio = getDimensionOfResolution(res).getWidth()/viewAngleX;
+		cameraYPixToAngleRatio = getDimensionOfResolution(res).getHeight()/viewAngleY;
 	}
 	/**
 	 * Inits the camera with these qualities.
@@ -163,6 +169,45 @@ public class Camera {
 		camInit(compression,brightness,exposure,Resolution.k640x480,WhiteBalance.kFixedIndoor);
 	}
 	
+	private Dimension getDimensionOfResolution(Resolution res)
+	{
+		int w,h;
+		switch(res)
+		{
+		case k160x120:
+			w = 160;
+			h = 120;
+			break;
+		case k176x144:
+			w = 176;
+			h = 144;
+			break;
+		case k240x180:
+			w = 240;
+			h = 180;
+			break;
+		case k320x240:
+			w = 320;
+			h = 240;
+			break;
+		case k480x360:
+			w = 480;
+			h = 360;
+			break;
+		case k640x480:
+			w = 640;
+			h = 480;
+			break;
+		default:
+			w = 0;
+			h = 0;
+			break;
+			
+		}
+		Dimension d = new Dimension(w,h);
+		return d;
+	}
+	
 	public double getCameraAngle() {
 		
 		return (-(servoy.get()-1) * Parameters.kTotalCameraTiltAngle / Parameters.kTotalCameraTiltPos);
@@ -183,28 +228,30 @@ public class Camera {
 //		}
 
 	}
-
-	public double pixelYToPosY(double pixy)
+	/**
+	 * Converts pixel coord into angle from center
+	 * @param pixy Pixel used to calculate the angle from center
+	 * @return Angle in degrees from the center of the image
+	 */
+	public double pixelYToAngleY(double pixy)
 	{
 		double posy;
 		posy = pixy;
-		posy -= 120;
-		posy *=51;
-		posy /=240;
-		posy *= Parameters.kTotalCameraTiltPos;
-		posy /= Parameters.kTotalCameraTiltAngle;
-//		posy *= 0.382;
-//		posy /= 69;
+		posy -= (getDimensionOfResolution(cam.getResolution()).getHeight()/2);
+		posy *= cameraYPixToAngleRatio;
 		return posy;
 	}
-		
+	/**
+	 * Converts pixel coord into angle from center
+	 * @param pixx Pixel used to calculate the angle from center
+	 * @return Angle in degrees from the center of the image
+	 */
 	public double pixelXToTargetAngleX(double pixx)
 	{
 		double posx;
 		posx = pixx;
-		posx -= 160;
-		posx *= 67;
-		posx /= 320;
+		posx -= (getDimensionOfResolution(cam.getResolution()).getWidth()/2);
+		posx *= cameraXPixToAngleRatio;
 		return posx;
 	}
 	
@@ -232,7 +279,9 @@ public class Camera {
 			followInit = false;
 		}
 	}
-
+	/**
+	 * Takes a picture and finds squares
+	 */
 	public void getImage() {
 		try
 		{
@@ -580,10 +629,6 @@ public class Camera {
 		}
 	}
 
-	private boolean isSimilar(ParticleReport par, ParticleReport par2) {
-		// Rectangle rect = new Rectangle(par.BoundingRectLeft,par.)
-		return false;
-	}
 
 	// A structure to hold measurements of a particle
 	public class ParticleReport implements Comparator<ParticleReport>,
